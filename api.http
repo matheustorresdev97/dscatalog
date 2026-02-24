@@ -1,0 +1,41 @@
+@host = http://localhost:8080
+@categoryId = 1
+
+### Buscar Categorias Paginadas (Padrão)
+GET {{host}}/categories
+Accept: application/json
+
+### Buscar Categorias com Paginação Customizada
+GET {{host}}/categories?page=0&size=5&sort=name,asc
+Accept: application/json
+
+### Buscar Categoria por ID
+GET {{host}}/categories/{{categoryId}}
+Accept: application/json
+
+### TENTAR BUSCAR ID INEXISTENTE (Testa ResourceNotFoundException)
+GET {{host}}/categories/9999
+Accept: application/json
+
+### Inserir Nova Categoria
+POST {{host}}/categories
+Content-Type: application/json
+
+{
+  "name": "Eletrônicos"
+}
+
+### Atualizar Categoria
+PUT {{host}}/categories/{{categoryId}}
+Content-Type: application/json
+
+{
+  "name": "Computadores & Acessórios"
+}
+
+### Deletar Categoria
+DELETE {{host}}/categories/{{categoryId}}
+
+### TENTAR DELETAR CATEGORIA COM PRODUTOS (Testa DatabaseException)
+# Certifique-se de que o ID 2 tem produtos vinculados no seu banco de sementes (seed)
+DELETE {{host}}/categories/2
