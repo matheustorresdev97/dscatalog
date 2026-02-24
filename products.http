@@ -1,0 +1,48 @@
+@host = http://localhost:8080
+@productId = 1
+
+### Buscar Produtos Paginados
+GET {{host}}/products?page=0&size=12&sort=name,asc
+Accept: application/json
+
+### Buscar Produto por ID
+GET {{host}}/products/{{productId}}
+Accept: application/json
+
+### Inserir Novo Produto
+POST {{host}}/products
+Content-Type: application/json
+
+{
+  "name": "Console PlayStation 5",
+  "description": "Console de última geração com SSD ultra rápido",
+  "price": 4500.0,
+  "imgUrl": "https://raw.githubusercontent.com/devsuperior/dscatalog-resources/master/backend/img/1-big.jpg",
+  "date": "2024-05-20T10:00:00Z",
+  "categories": [
+    { "id": 1 },
+    { "id": 2 }
+  ]
+}
+
+### Atualizar Produto
+PUT {{host}}/products/{{productId}}
+Content-Type: application/json
+
+{
+  "name": "Smart TV 4K Editada",
+  "description": "Descrição atualizada do produto",
+  "price": 2899.99,
+  "imgUrl": "https://img.com/tv.jpg",
+  "date": "2024-05-21T15:30:00Z",
+  "categories": [
+    { "id": 2 }
+  ]
+}
+
+### Deletar Produto
+DELETE {{host}}/products/{{productId}}
+
+### Testar Erro: Produto Inexistente
+GET {{host}}/products/9999
+Accept: application/json
