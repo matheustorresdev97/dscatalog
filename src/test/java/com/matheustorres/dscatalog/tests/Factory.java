@@ -1,0 +1,23 @@
+package com.matheustorres.dscatalog.tests;
+
+import java.time.Instant;
+
+import com.matheustorres.dscatalog.dto.ProductDTO;
+import com.matheustorres.dscatalog.entities.Category;
+import com.matheustorres.dscatalog.entities.Product;
+
+public class Factory {
+    public static Product createProduct() {
+        Product product = new Product(1L, "Phone", "Good Phone", 800.0, "https://img.com/img.png",
+                Instant.parse("2023-03-10T14:00:00Z"));
+        product.getCategories().add(new Category(1L, "Electronics"));
+
+        return product;
+    }
+
+    public static ProductDTO createProductDTO() {
+        Product product = createProduct();
+
+        return new ProductDTO(product, product.getCategories());
+    }
+}
