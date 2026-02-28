@@ -26,11 +26,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import com.matheustorres.dscatalog.dto.ProductDTO;
+import com.matheustorres.dscatalog.entities.Category;
 import com.matheustorres.dscatalog.entities.Product;
+import com.matheustorres.dscatalog.repositories.CategoryRepository;
 import com.matheustorres.dscatalog.repositories.ProductRepository;
 import com.matheustorres.dscatalog.services.exceptions.DatabaseException;
 import com.matheustorres.dscatalog.services.exceptions.ResourceNotFoundException;
 import com.matheustorres.dscatalog.tests.Factory;
+
+import jakarta.persistence.EntityNotFoundException;
 
 @ExtendWith(SpringExtension.class)
 public class ProductServiceTests {
@@ -41,11 +45,16 @@ public class ProductServiceTests {
     @Mock
     private ProductRepository repository;
 
+    @Mock
+    CategoryRepository categoryRepository;
+
     private long existingId;
     private long nonExistingId;
     private long dependentId;
     private PageImpl<Product> page;
     private Product product;
+    private ProductDTO productDTO;
+    private Category category;
 
     @BeforeEach
     void setup() {
@@ -53,7 +62,9 @@ public class ProductServiceTests {
         nonExistingId = 2L;
         dependentId = 3L;
         product = Factory.createProduct();
+        productDTO = Factory.createProductDTO();
         page = new PageImpl<>(List.of(product));
+        category = Factory.createCategory();
 
         when(repository.findAll(any(Pageable.class))).thenReturn(page);
         when(repository.save(any())).thenReturn(product);
@@ -64,6 +75,11 @@ public class ProductServiceTests {
         when(repository.existsById(nonExistingId)).thenReturn(false);
         when(repository.existsById(dependentId)).thenReturn(true);
 
+        when(repository.getReferenceById(existingId)).thenReturn(product);
+        when(repository.getReferenceById(nonExistingId)).thenThrow(EntityNotFoundException.class);
+
+        when(categoryRepository.getReferenceById(existingId)).thenReturn(category);
+        when(categoryRepository.getReferenceById(nonExistingId)).thenThrow(EntityNotFoundException.class);
         doNothing().when(repository).deleteById(existingId);
         doNothing().when(repository).deleteById(nonExistingId);
         doThrow(DataIntegrityViolationException.class).when(repository).deleteById(dependentId);
@@ -114,5 +130,27 @@ public class ProductServiceTests {
                 .isInstanceOf(ResourceNotFoundException.class);
 
         verify(repository).findById(nonExistingId);
+    }
+
+    @Test
+    @DisplayName("update deve retornar ProductDTO quando id existe")
+    public void updateShouldReturnProductDTOWhenIdExists() {
+        ProductDTO result = service.update(existingId, productDTO);
+
+        assertThat(result).isNotNull();
+
+        verify(repository, times(1)).getReferenceById(existingId);
+
+        verify(categoryRepository, times(1)).getReferenceById(any());
+    }
+
+    @Test
+    @DisplayName("update deve lançar ResourceNotFoundException quando id não existe")
+    public void updateShouldThrowResourceNotFoundExceptionWhenIdDoesNotExist() {
+
+        assertThatThrownBy(() -> service.update(nonExistingId, productDTO))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(repository, times(1)).getReferenceById(nonExistingId);
     }
 }
