@@ -10,7 +10,7 @@ public record UserDTO(
         String firstName,
         String lastName,
         String email,
-        Set<RoleDTO> roles) {
+        Set<RoleDTO> roles) implements UserView {
     public UserDTO {
         if (roles == null) {
             roles = java.util.Collections.emptySet();
