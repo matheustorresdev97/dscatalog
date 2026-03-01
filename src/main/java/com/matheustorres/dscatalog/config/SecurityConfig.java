@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -25,7 +26,8 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private static final String JWT_SECRET = "MY-JWT-SECRET-MY-JWT-SECRET";
+    @Value("${jwt.secret}")
+	private String jwtSecret;
 
 
     @Bean
@@ -62,7 +64,7 @@ public class SecurityConfig {
     @Bean
     public JwtDecoder jwtDecoder() {
         SecretKey key = new SecretKeySpec(
-                JWT_SECRET.getBytes(StandardCharsets.UTF_8),
+                jwtSecret.getBytes(StandardCharsets.UTF_8),
                 "HmacSHA256"
         );
         return NimbusJwtDecoder.withSecretKey(key).build();
@@ -71,7 +73,7 @@ public class SecurityConfig {
     @Bean
     public JwtEncoder jwtEncoder() {
         SecretKey key = new SecretKeySpec(
-                JWT_SECRET.getBytes(StandardCharsets.UTF_8),
+                jwtSecret.getBytes(StandardCharsets.UTF_8),
                 "HmacSHA256"
         );
         return new NimbusJwtEncoder(new ImmutableSecret<>(key));
