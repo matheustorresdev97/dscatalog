@@ -5,11 +5,15 @@ import java.util.stream.Collectors;
 
 import com.matheustorres.dscatalog.entities.User;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+
 public record UserDTO(
         Long id,
-        String firstName,
+
+        @NotBlank(message = "Campo obrigatório!") String firstName,
         String lastName,
-        String email,
+        @Email(message = "Favor entrar com um email válido!") String email,
         Set<RoleDTO> roles) implements UserView {
     public UserDTO {
         if (roles == null) {

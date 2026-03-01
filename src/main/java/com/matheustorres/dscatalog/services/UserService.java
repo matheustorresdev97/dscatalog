@@ -26,7 +26,7 @@ import jakarta.persistence.EntityNotFoundException;
 @Service
 public class UserService {
 
-    private BCryptPasswordEncoder passwordEncoder;
+    private final BCryptPasswordEncoder passwordEncoder;
     private final UserRepository repository;
     private final RoleRepository roleRepository;
 

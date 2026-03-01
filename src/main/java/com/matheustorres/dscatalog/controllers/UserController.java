@@ -19,6 +19,8 @@ import com.matheustorres.dscatalog.dto.CreateUserDTO;
 import com.matheustorres.dscatalog.dto.UserDTO;
 import com.matheustorres.dscatalog.services.UserService;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping(value = "/users")
 public class UserController {
@@ -43,10 +45,10 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<UserDTO> insert(@RequestBody CreateUserDTO dto) {
-        dto = service.insert(dto);
-        URI uri = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(dto.id()).toUri();
-        return ResponseEntity.created(uri).body(dto);
+    public ResponseEntity<UserDTO> insert(@Valid @RequestBody CreateUserDTO dto) {
+        UserDTO newDTO = service.insert(dto);
+        URI uri = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(newDTO.id()).toUri();
+        return ResponseEntity.created(uri).body(newDTO);
     }
 
     @PutMapping(value = "/{id}")
