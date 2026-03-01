@@ -2,10 +2,15 @@ package com.matheustorres.dscatalog.services;
 
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,14 +29,17 @@ import com.matheustorres.dscatalog.services.exceptions.ResourceNotFoundException
 import jakarta.persistence.EntityNotFoundException;
 
 @Service
-public class UserService {
+public class UserService implements UserDetailsService {
+
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     private final BCryptPasswordEncoder passwordEncoder;
     private final UserRepository repository;
     private final RoleRepository roleRepository;
 
-    public UserService(UserRepository repository, RoleRepository roleRepository,
-            BCryptPasswordEncoder passwordEncoder) {
+    public UserService(UserRepository repository,
+                       RoleRepository roleRepository,
+                       BCryptPasswordEncoder passwordEncoder) {
         this.repository = repository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
@@ -46,7 +54,8 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserDTO findById(Long id) {
         Optional<User> obj = repository.findById(id);
-        User entity = obj.orElseThrow(() -> new ResourceNotFoundException("Entity not found"));
+        User entity = obj.orElseThrow(() ->
+                new ResourceNotFoundException("Entity not found"));
         return new UserDTO(entity);
     }
 
@@ -54,7 +63,10 @@ public class UserService {
     public UserDTO insert(CreateUserDTO dto) {
         User entity = new User();
         copyDtoToEntity(dto, entity);
+
+        // Encode password
         entity.setPassword(passwordEncoder.encode(dto.password()));
+
         entity = repository.save(entity);
         return new UserDTO(entity);
     }
@@ -66,27 +78,47 @@ public class UserService {
             copyDtoToEntity(dto, entity);
             entity = repository.save(entity);
             return new UserDTO(entity);
+
         } catch (EntityNotFoundException e) {
             throw new ResourceNotFoundException("Id not found " + id);
         }
     }
 
+    @Transactional
     public void delete(Long id) {
         try {
             repository.deleteById(id);
+
         } catch (EmptyResultDataAccessException e) {
             throw new ResourceNotFoundException("Id not found " + id);
+
         } catch (DataIntegrityViolationException e) {
-            throw new DatabaseException("Integrity violaton");
+            throw new DatabaseException("Integrity violation");
+        }
+    }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserDetails loadUserByUsername(String username)
+            throws UsernameNotFoundException {
+
+        User user = repository.findByEmail(username);
+
+        if (user == null) {
+            logger.error("User not found: {}", username);
+            throw new UsernameNotFoundException(
+                    "Email not found: " + username);
         }
 
+        logger.info("User found: {}", username);
+        return user;
     }
 
     private void copyDtoToEntity(UserView dto, User entity) {
         entity.setFirstName(dto.firstName());
         entity.setLastName(dto.lastName());
         entity.setEmail(dto.email());
-
         entity.getRoles().clear();
         for (RoleDTO roleDto : dto.roles()) {
             Role role = roleRepository.getReferenceById(roleDto.id());
