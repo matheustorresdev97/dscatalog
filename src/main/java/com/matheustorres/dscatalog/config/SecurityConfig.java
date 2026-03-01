@@ -1,81 +1,95 @@
 package com.matheustorres.dscatalog.config;
 
-import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
-import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import com.matheustorres.dscatalog.repositories.UserRepository;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Value("${jwt.secret}")
-	private String jwtSecret;
+    private final Environment env;
 
+    public SecurityConfig(Environment env) {
+        this.env = env;
+    }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    @Order(2)
+    public SecurityFilterChain resourceServerFilterChain(HttpSecurity http) throws Exception {
+
+        String[] PUBLIC = { "/oauth2/token", "/h2-console/**" };
+        String[] OPERATOR_OR_ADMIN = { "/products/**", "/categories/**" };
+        String[] ADMIN = { "/users/**" };
 
         http
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/**", "/auth/login").permitAll()
-                .anyRequest().authenticated()
-            )
-            .oauth2ResourceServer(oauth2 ->
-                oauth2.jwt(jwt -> jwt.decoder(jwtDecoder()))
-            );
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(PUBLIC).permitAll()
+                        .requestMatchers(HttpMethod.GET, OPERATOR_OR_ADMIN).permitAll()
+                        .requestMatchers(OPERATOR_OR_ADMIN).hasAnyRole("OPERATOR", "ADMIN")
+                        .requestMatchers(ADMIN).hasRole("ADMIN")
+                        .anyRequest().authenticated())
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
+
+        if (Arrays.asList(env.getActiveProfiles()).contains("test")) {
+            http.headers(headers -> headers
+                    .frameOptions(frame -> frame.disable()));
+        }
 
         return http.build();
     }
 
     @Bean
-    public BCryptPasswordEncoder passwordEncoder() {
+    public UserDetailsService userDetailsService(UserRepository repository) {
+        return username -> {
+            var user = repository.findByEmail(username);
+            if (user == null)
+                throw new UsernameNotFoundException("User not found");
+
+            return org.springframework.security.core.userdetails.User.builder()
+                    .username(user.getEmail())
+                    .password(user.getPassword())
+                    .authorities(user.getRoles().stream()
+                            .map(r -> new SimpleGrantedAuthority(r.getAuthority()))
+                            .toArray(SimpleGrantedAuthority[]::new))
+                    .build();
+        };
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
     @Bean
     public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
-    }
+            UserDetailsService userDetailsService,
+            PasswordEncoder passwordEncoder) {
 
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder);
 
-    @Bean
-    public JwtDecoder jwtDecoder() {
-        SecretKey key = new SecretKeySpec(
-                jwtSecret.getBytes(StandardCharsets.UTF_8),
-                "HmacSHA256"
-        );
-        return NimbusJwtDecoder.withSecretKey(key).build();
-    }
-
-    @Bean
-    public JwtEncoder jwtEncoder() {
-        SecretKey key = new SecretKeySpec(
-                jwtSecret.getBytes(StandardCharsets.UTF_8),
-                "HmacSHA256"
-        );
-        return new NimbusJwtEncoder(new ImmutableSecret<>(key));
+        return new ProviderManager(provider);
     }
 }

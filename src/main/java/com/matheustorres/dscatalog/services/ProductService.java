@@ -1,5 +1,6 @@
 package com.matheustorres.dscatalog.services;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -32,15 +33,25 @@ public class ProductService {
 	}
 
 	@Transactional(readOnly = true)
-	public Page<ProductDTO> findAllPaged(Pageable pageable) {
-		Page<Product> list = repository.findAll(pageable);
-		return list.map(x -> new ProductDTO(x, x.getCategories()));
+	public Page<ProductDTO> findAllPaged(Long categoryId, String name, Pageable pageable) {
+		Page<Product> page = repository.find(
+				Optional.ofNullable(categoryId).filter(id -> id != 0).orElse(null),
+				name,
+				pageable);
+
+		List<Long> productIds = page.getContent().stream()
+				.map(Product::getId)
+				.toList();
+
+		repository.productWithCategories(productIds);
+
+		return page.map(x -> new ProductDTO(x, x.getCategories()));
 	}
 
 	@Transactional(readOnly = true)
 	public ProductDTO findById(Long id) {
-		Optional<Product> obj = repository.findById(id);
-		Product entity = obj.orElseThrow(() -> new ResourceNotFoundException("Entity not found"));
+		Product entity = repository.findById(id)
+				.orElseThrow(() -> new ResourceNotFoundException("Entity not found"));
 		return new ProductDTO(entity, entity.getCategories());
 	}
 

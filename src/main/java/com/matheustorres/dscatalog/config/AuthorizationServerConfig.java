@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,6 +22,8 @@ import org.springframework.security.oauth2.server.authorization.config.annotatio
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
+import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 import org.springframework.security.web.SecurityFilterChain;
 
 import com.nimbusds.jose.jwk.JWKSet;
@@ -33,17 +36,28 @@ import com.nimbusds.jose.proc.SecurityContext;
 public class AuthorizationServerConfig {
 
     @Value("${security.oauth2.client.client-id}")
-    private String clienttId;
+    private String clientId;
     @Value("${security.oauth2.client.client-secret}")
     private String clientSecret;
     @Value("${jwt.duration}")
     private Integer jwtDuration;
 
     @Bean
-    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http)
-            throws Exception {
-        OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = OAuth2AuthorizationServerConfigurer
-                .authorizationServer();
+    @Order(1)
+    public SecurityFilterChain authorizationServerSecurityFilterChain(
+            HttpSecurity http,
+            PasswordGrantAuthenticationConverter converter,
+            PasswordGrantAuthenticationProvider provider) throws Exception {
+
+        OAuth2AuthorizationServerConfigurer authorizationServerConfigurer =
+                OAuth2AuthorizationServerConfigurer.authorizationServer();
+
+        // Registra o password grant customizado
+        authorizationServerConfigurer
+                .tokenEndpoint(tokenEndpoint -> tokenEndpoint
+                        .accessTokenRequestConverter(converter)
+                        .authenticationProvider(provider)
+                );
 
         http
                 .securityMatcher(authorizationServerConfigurer.getEndpointsMatcher())
@@ -56,7 +70,7 @@ public class AuthorizationServerConfig {
     @Bean
     public RegisteredClientRepository registeredClientRepository(PasswordEncoder passwordEncoder) {
         RegisteredClient client = RegisteredClient.withId(UUID.randomUUID().toString())
-                .clientId(clienttId)
+                .clientId(clientId)
                 .clientSecret(passwordEncoder.encode(clientSecret))
                 .scope("read")
                 .scope("write")
@@ -67,7 +81,6 @@ public class AuthorizationServerConfig {
                 .tokenSettings(TokenSettings.builder()
                         .accessTokenTimeToLive(Duration.ofSeconds(jwtDuration))
                         .build())
-
                 .build();
 
         return new InMemoryRegisteredClientRepository(client);
@@ -90,11 +103,16 @@ public class AuthorizationServerConfig {
         return AuthorizationServerSettings.builder().build();
     }
 
+    @Bean
+    public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer(JwtToken jwtToken) {
+        return jwtToken;
+    }
+
     private RSAKey generateRSAKey() {
         try {
-            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-            keyPairGenerator.initialize(2048);
-            KeyPair keyPair = keyPairGenerator.generateKeyPair();
+            KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
+            gen.initialize(2048);
+            KeyPair keyPair = gen.generateKeyPair();
             return new RSAKey.Builder((RSAPublicKey) keyPair.getPublic())
                     .privateKey(keyPair.getPrivate())
                     .keyID(UUID.randomUUID().toString())
