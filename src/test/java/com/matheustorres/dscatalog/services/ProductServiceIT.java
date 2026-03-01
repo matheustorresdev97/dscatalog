@@ -18,8 +18,6 @@ import com.matheustorres.dscatalog.dto.ProductDTO;
 import com.matheustorres.dscatalog.repositories.ProductRepository;
 import com.matheustorres.dscatalog.services.exceptions.ResourceNotFoundException;
 
-
-
 @SpringBootTest
 @Transactional
 class ProductServiceIT {
@@ -36,8 +34,8 @@ class ProductServiceIT {
 
     @BeforeEach
     void setup() {
-        existingId        = 1L;
-        nonExistingId     = 1000L;
+        existingId = 1L;
+        nonExistingId = 1000L;
         countTotalProducts = 25L;
     }
 
@@ -56,12 +54,12 @@ class ProductServiceIT {
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
-    @Test 
+    @Test
     @DisplayName("findAllPaged deve retornar página quando página 0 tamanho 10")
     void findAllPagedShouldReturnPageWhenPage0Size10() {
         PageRequest pageRequest = PageRequest.of(0, 10);
 
-        Page<ProductDTO> result = service.findAllPaged(pageRequest);
+        Page<ProductDTO> result = service.findAllPaged(0L, "", pageRequest); // ← corrigido
 
         assertThat(result).isNotEmpty();
         assertThat(result.getNumber()).isZero();
@@ -74,7 +72,7 @@ class ProductServiceIT {
     void findAllPagedShouldReturnEmptyPageWhenPageDoesNotExist() {
         PageRequest pageRequest = PageRequest.of(50, 10);
 
-        Page<ProductDTO> result = service.findAllPaged(pageRequest);
+        Page<ProductDTO> result = service.findAllPaged(0L, "", pageRequest); // ← corrigido
 
         assertThat(result).isEmpty();
     }
@@ -84,7 +82,7 @@ class ProductServiceIT {
     void findAllPagedShouldReturnSortedPageWhenSortByName() {
         PageRequest pageRequest = PageRequest.of(0, 10, Sort.by("name"));
 
-        Page<ProductDTO> result = service.findAllPaged(pageRequest);
+        Page<ProductDTO> result = service.findAllPaged(0L, "", pageRequest); // ← corrigido
 
         List<String> names = result.getContent()
                 .stream()
@@ -92,6 +90,6 @@ class ProductServiceIT {
                 .toList();
 
         assertThat(result).isNotEmpty();
-        assertThat(names).isSortedAccordingTo(String::compareTo); // ✅ robusto
+        assertThat(names).isSortedAccordingTo(String::compareTo);
     }
 }

@@ -1,0 +1,45 @@
+package com.matheustorres.dscatalog.tests;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.json.JacksonJsonParser;
+import org.springframework.stereotype.Component;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@Component
+public class TokenUtil {
+
+    @Value("${security.oauth2.client.client-id}")
+    private String clientId;
+    @Value("${security.oauth2.client.client-secret}")
+    private String clientSecret;
+
+    public String obtainAccessToken(MockMvc mockMvc, String username, String password)
+            throws Exception {
+
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        params.add("grant_type", "password");
+        params.add("client_id", clientId);
+        params.add("username", username);
+        params.add("password", password);
+
+        ResultActions result = mockMvc
+                .perform(post("/oauth2/token")
+                        .params(params)
+                        .with(SecurityMockMvcRequestPostProcessors.httpBasic(clientId, clientSecret))
+                        .accept("application/json"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/json"));
+
+        String resultString = result.andReturn().getResponse().getContentAsString();
+        JacksonJsonParser jsonParser = new JacksonJsonParser();
+        return jsonParser.parseMap(resultString).get("access_token").toString();
+    }
+}

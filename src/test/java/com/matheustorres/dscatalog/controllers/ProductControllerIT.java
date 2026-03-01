@@ -17,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.matheustorres.dscatalog.dto.ProductDTO;
 import com.matheustorres.dscatalog.tests.Factory;
+import com.matheustorres.dscatalog.tests.TokenUtil;
 
 import jakarta.transaction.Transactional;
 
@@ -31,21 +32,27 @@ class ProductResourceIT {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private TokenUtil tokenUtil;
+
     private Long existingId;
     private Long nonExistingId;
     private Long countTotalProducts;
+    private String adminToken;
 
     @BeforeEach
-    void setup() {
+    void setup() throws Exception {
         existingId         = 1L;
         nonExistingId      = 10000L;
         countTotalProducts = 25L;
+        adminToken         = tokenUtil.obtainAccessToken(mockMvc, "admin@gmail.com", "123456");
     }
 
     @Test
     @DisplayName("findAll deve retornar página ordenada quando ordenado por nome")
     void findAllShouldReturnSortedPageWhenSortByName() throws Exception {
         mockMvc.perform(get("/products?page=0&size=12&sort=name,asc")
+                .header("Authorization", "Bearer " + adminToken)
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(countTotalProducts))
@@ -60,17 +67,18 @@ class ProductResourceIT {
     void updateShouldReturnProductDTOWhenIdExists() throws Exception {
         ProductDTO productDTO = Factory.createProductDTO();
         String jsonBody       = objectMapper.writeValueAsString(productDTO);
-        String expectedName   = productDTO.name();         // ✅ record
-        String expectedDesc   = productDTO.description();  // ✅ record
+        String expectedName   = productDTO.name();
+        String expectedDesc   = productDTO.description();
 
         mockMvc.perform(put("/products/{id}", existingId)
+                .header("Authorization", "Bearer " + adminToken)
                 .content(jsonBody)
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(existingId))
                 .andExpect(jsonPath("$.name").value(expectedName))
-                .andExpect(jsonPath("$.description").value(expectedDesc)); // ✅ sem duplicata
+                .andExpect(jsonPath("$.description").value(expectedDesc));
     }
 
     @Test
@@ -80,6 +88,7 @@ class ProductResourceIT {
         String jsonBody       = objectMapper.writeValueAsString(productDTO);
 
         mockMvc.perform(put("/products/{id}", nonExistingId)
+                .header("Authorization", "Bearer " + adminToken)
                 .content(jsonBody)
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON))

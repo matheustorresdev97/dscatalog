@@ -20,6 +20,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 import com.matheustorres.dscatalog.repositories.UserRepository;
 
@@ -28,9 +29,11 @@ import com.matheustorres.dscatalog.repositories.UserRepository;
 public class SecurityConfig {
 
     private final Environment env;
+    private final CorsConfigurationSource corsConfigurationSource;
 
-    public SecurityConfig(Environment env) {
+    public SecurityConfig(Environment env, CorsConfigurationSource corsConfigurationSource) {
         this.env = env;
+        this.corsConfigurationSource = corsConfigurationSource;
     }
 
     @Bean
@@ -42,6 +45,7 @@ public class SecurityConfig {
         String[] ADMIN = { "/users/**" };
 
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
@@ -71,7 +75,7 @@ public class SecurityConfig {
                     .username(user.getEmail())
                     .password(user.getPassword())
                     .authorities(user.getRoles().stream()
-                            .map(r -> new SimpleGrantedAuthority(r.getAuthority()))
+                            .map(r -> new SimpleGrantedAuthority("ROLE_" + r.getAuthority()))
                             .toArray(SimpleGrantedAuthority[]::new))
                     .build();
         };

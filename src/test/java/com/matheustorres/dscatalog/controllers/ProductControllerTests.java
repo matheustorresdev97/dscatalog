@@ -11,6 +11,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
@@ -30,6 +31,7 @@ import com.matheustorres.dscatalog.services.exceptions.ResourceNotFoundException
 import com.matheustorres.dscatalog.tests.Factory;
 
 @WebMvcTest(ProductController.class)
+@AutoConfigureMockMvc(addFilters = false)
 class ProductControllerTests {
 
     @Autowired
@@ -53,7 +55,7 @@ class ProductControllerTests {
         productDTO = Factory.createProductDTO();
         page = new PageImpl<>(List.of(productDTO));
 
-        when(service.findAllPaged(any())).thenReturn(page);
+        when(service.findAllPaged(any(), any(), any())).thenReturn(page);
         when(service.findById(existingId)).thenReturn(productDTO);
         when(service.findById(nonExistingId))
                 .thenThrow(ResourceNotFoundException.class);
@@ -63,12 +65,16 @@ class ProductControllerTests {
         when(service.insert(any())).thenReturn(productDTO);
         doNothing().when(service).delete(existingId);
         doThrow(ResourceNotFoundException.class).when(service).delete(nonExistingId);
+
     }
 
     @Test
     @DisplayName("findAll deve retornar página de produtos")
     void findAllShouldReturnPage() throws Exception {
+
         mockMvc.perform(get("/products")
+                .param("categoryId", "0")
+                .param("name", "")
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
@@ -77,6 +83,7 @@ class ProductControllerTests {
     @DisplayName("findById deve retornar produto quando id existe")
     void findByIdShouldReturnProductWhenIdExists() throws Exception {
         mockMvc.perform(get("/products/{id}", existingId)
+
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").exists())
@@ -96,7 +103,6 @@ class ProductControllerTests {
     @DisplayName("update deve retornar ProductDTO quando id existe")
     void updateShouldReturnProductDTOWhenIdExists() throws Exception {
         String jsonBody = objectMapper.writeValueAsString(productDTO);
-
         mockMvc.perform(put("/products/{id}", existingId)
                 .content(jsonBody)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -114,7 +120,7 @@ class ProductControllerTests {
 
         mockMvc.perform(put("/products/{id}", nonExistingId)
                 .content(jsonBody)
-                .contentType(MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_JSON) // ← adicionar
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
     }
@@ -124,7 +130,7 @@ class ProductControllerTests {
     void insertShouldReturnProductDTOCreated() throws Exception {
         String jsonBody = objectMapper.writeValueAsString(productDTO);
 
-        mockMvc.perform(post("/products") // ✅ sem barra no final
+        mockMvc.perform(post("/products")
                 .content(jsonBody)
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON))

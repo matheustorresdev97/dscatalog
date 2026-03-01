@@ -11,6 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import static org.mockito.Mockito.doNothing;
@@ -66,7 +67,7 @@ public class ProductServiceTests {
         page = new PageImpl<>(List.of(product));
         category = Factory.createCategory();
 
-        when(repository.findAll(any(Pageable.class))).thenReturn(page);
+        when(repository.find(any(), any(), any(Pageable.class))).thenReturn(page);
         when(repository.save(any())).thenReturn(product);
         when(repository.findById(existingId)).thenReturn(Optional.of(product));
         when(repository.findById(nonExistingId)).thenReturn(Optional.empty());
@@ -108,10 +109,10 @@ public class ProductServiceTests {
     void findAllPagedShouldReturnPage() {
         Pageable pageable = PageRequest.of(0, 10);
 
-        Page<ProductDTO> result = service.findAllPaged(pageable);
+        Page<ProductDTO> result = service.findAllPaged(0L, "", pageable);
 
         assertThat(result).isNotNull();
-        verify(repository).findAll(pageable);
+        verify(repository).find(any(), any(), eq(pageable));
     }
 
     @Test
